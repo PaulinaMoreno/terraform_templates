@@ -2,49 +2,55 @@ provider "azurerm" {
   features {}
 }
 
-resource "azurerm_virtual_machine" "example" {
-  name                  = "${local.virtual_machine_name}"
-  location              = "${azurerm_resource_group.example.location}"
-  resource_group_name   = "${azurerm_resource_group.example.name}"
-  network_interface_ids = ["${azurerm_network_interface.example.id}"]
-  vm_size               = "Standard_F2"
+resource "azurerm_resource_group" "main" {
+  name     = "${var.prefix}-resources"
+  location = var.location
+}
 
-  # This means the OS Disk will be deleted when Terraform destroys the Virtual Machine
-  # NOTE: This may not be optimal in all cases.
-  delete_os_disk_on_termination = true
+resource "azurerm_virtual_network" "main" {
+  name                = "${var.prefix}-network"
+  address_space       = ["10.0.0.0/16"]
+  location            = "${azurerm_resource_group.main.location}"
+  resource_group_name = "${azurerm_resource_group.main.name}"
+}
 
-  storage_image_reference {
+resource "azurerm_subnet" "internal" {
+  name                 = "internal"
+  resource_group_name  = "${azurerm_resource_group.main.name}"
+  virtual_network_name = "${azurerm_virtual_network.main.name}"
+  address_prefix       = "10.0.2.0/24"
+}
+
+resource "azurerm_linux_virtual_machine_scale_set" "main" {
+  name                            = "${var.prefix}-vmss"
+  resource_group_name             = azurerm_resource_group.main.name
+  location                        = azurerm_resource_group.main.location
+  sku                             = "Standard_F2"
+  instances                       = 3
+  admin_username                  = "adminuser"
+  admin_password                  = "P@ssw0rd1234!"
+  disable_password_authentication = false
+
+  source_image_reference {
     publisher = "Canonical"
     offer     = "UbuntuServer"
     sku       = "16.04-LTS"
     version   = "latest"
   }
 
-  storage_os_disk {
-    name              = "${var.prefix}-osdisk"
-    caching           = "ReadWrite"
-    create_option     = "FromImage"
-    managed_disk_type = "Standard_LRS"
-  }
+  network_interface {
+    name    = "example"
+    primary = true
 
-  os_profile {
-    computer_name  = "${local.virtual_machine_name}"
-    admin_username = "${local.admin_username}"
-    admin_password = "${local.admin_password}"
-  }
-
-  os_profile_linux_config {
-    disable_password_authentication = false
-  }
-
-  provisioner "remote-exec" {
-    connection {
-      user     = "${local.admin_username}"
-      password = "${local.admin_password}"
+    ip_configuration {
+      name      = "internal"
+      primary   = true
+      subnet_id = azurerm_subnet.internal.id
     }
+  }
 
-    inline = [
-      "ls -la",
-    ]
+  os_disk {
+    storage_account_type = "Standard_LRS"
+    caching              = "ReadWrite"
   }
 }
