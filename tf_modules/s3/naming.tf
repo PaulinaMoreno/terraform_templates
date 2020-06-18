@@ -5,7 +5,7 @@
 ## e.g. module.label.id
 
 module "label" {
-  source      = "./naming"
+  source      = "naming"
   oe          = "${var.oe}"
   project     = "${var.project}"
   environment = "${var.environment}"
