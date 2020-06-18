@@ -2,10 +2,10 @@
 ## please use this TF Script inside your module
 ## the output can be used in the form
 ## module.label.<output-name>
-## e.g. module.label.id 
+## e.g. module.label.id
 
 module "label" {
-  source      = "../naming"
+  source      = "./naming"
   oe          = "${var.oe}"
   project     = "${var.project}"
   environment = "${var.environment}"
